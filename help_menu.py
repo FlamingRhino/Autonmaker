@@ -1,8 +1,8 @@
 import pygame
-import main
+from pygame import font
 
 
-def draw_menu(screen):
+def draw_menu(screen, font):
     menu_text = [
         "Key Bindings:",
         "• W - Move forward",
@@ -24,7 +24,7 @@ def draw_menu(screen):
         "• Right Click - Move player to mouse",
         "• Z - Open text box to set angle",
         "• J - Add distance to combined list",
-        "• H - Add angle to combined list",# the last thing that I can see
+        "• H - Add angle to combined list",
         "• Comma - Intake on",
         "• Period - Intake off",
         "• Slash - Intake reverse",

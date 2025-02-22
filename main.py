@@ -2,7 +2,6 @@
 from pickle import FALSE, TRUE
 from turtle import distance
 import pygame
-import contents  # Import contents.py
 from help_menu import draw_menu  # Import draw_menu function from help_menu.py
 
 # pygame setup
@@ -85,6 +84,7 @@ while running:
     # pygame.QUIT event means the user clicked X to close your window
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
+            print("Quitting...")
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN and not menu_open:
             if event.button == 1:  # Left click
@@ -330,7 +330,7 @@ while running:
         blurred_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
         blurred_surface.fill((0, 30, 30, 127))  # Semi-transparent overlay
         screen.blit(blurred_surface, (0, 0))
-        draw_menu(screen)
+        draw_menu(screen, font)
 
     # flip() the display to put your work on screen
     pygame.display.flip()
