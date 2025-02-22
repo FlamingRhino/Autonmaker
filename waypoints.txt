@@ -1,5 +1,73 @@
-armPID.set_target(1850);
-armPID.set_target(1850);
+void wadw()
+intake.move(127);
+
 armPID.set_target(550);
-armPID.set_target(290);
-armPID.set_target(10);
+
+intake.move(0);
+
+intake.move(127);
+
+
+void weeeeeee()
+
+void test()
+chassis.pid_turn_set(150_deg, 90);
+chassis.pid_wait();
+
+chassis.pid_drive_set(113_in, 110);
+chassis.pid_wait();
+
+intake.move(0);
+
+intake.move(127);
+
+chassis.pid_turn_set(11_deg, 90);
+chassis.pid_wait();
+
+chassis.pid_turn_set(11_deg, 90);
+chassis.pid_wait();
+
+chassis.pid_drive_set(91_in, 110);
+chassis.pid_wait();
+
+intake.move(127);
+
+intake.move(0);
+
+armPID.set_target(550);
+
+
+wd
+
+ppp
+
+pwwee
+
+wedgd
+// Position: -51, -112, Angle: 72°
+
+intake.move(127);
+
+intake.move(-127);
+
+intake.move(127);
+
+intake.move(-127);
+
+intake.move(0);
+
+chassis.pid_drive_set(94_in, 110);
+chassis.pid_wait();
+
+chassis.pid_turn_set(343_deg, 90);
+chassis.pid_wait();
+
+chassis.pid_turn_set(343_deg, 90);
+chassis.pid_wait();
+
+chassis.pid_drive_set(42_in, 110);
+chassis.pid_wait();
+
+armPID.set_target(550);
+
+

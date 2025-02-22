@@ -4,6 +4,7 @@ from turtle import distance
 import pygame
 from help_menu import draw_menu  # Import draw_menu function from help_menu.py
 from write_to_file import write_to_filef  # Import write_to_file function from write_to_file.py
+from read_form_line import read_functions_from_file, display_function_menu
 
 # pygame setup
 pygame.init()
@@ -66,11 +67,24 @@ menu_open = False
 # Variable to track if the text box is open
 text_box_open = False
 
+# Variable to track if the code should be printed to a file
+print_to_file = False
+
 # Variable to store the input angle
 input_angle = ""
 
 # Variable to store the input function
 input_function = ""
+
+# Load functions from waypoints.txt
+functions = read_functions_from_file("waypoints.txt")
+
+# Load the image for the functions menu button
+menu_button_image = pygame.image.load("autonsmenu.png").convert_alpha()
+menu_button_rect = menu_button_image.get_rect(topleft=(10, screen.get_height() - 60))
+
+# Variable to track the selected entry in the combined list
+selected_entry_index = -1
 
 def draw_lines(screen, points):
     if len(points) > 1:
@@ -93,11 +107,22 @@ while running:
         elif event.type == pygame.MOUSEBUTTONDOWN and not menu_open:
             if event.button == 1:  # Left click
                 # Add point to line points list
-                mouse_pos = pygame.Vector2(event.pos) + camera_offset
-                line_points.append(mouse_pos)
+                if menu_button_rect.collidepoint(event.pos):
+                    print("Opening menu...")
+                    selected_function = display_function_menu(screen, font, functions)
+                    if selected_function:
+                        print(f"Selected function: {selected_function}")
+                    # Implement editing functionality here
             elif event.button == 3:  # Right click
                 # Move player to mouse position
                 player_pos = pygame.Vector2(event.pos) + camera_offset
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if menu_button_rect.collidepoint(event.pos):
+                print("Opening menu...")
+                selected_function = display_function_menu(screen, font, functions)
+                if selected_function:
+                    print(f"Selected function: {selected_function}")
+                    # Implement editing functionality here
         elif event.type == pygame.MOUSEWHEEL and not menu_open:
             # Zoom in and out or scroll the list
             mouse_x, mouse_y = pygame.mouse.get_pos()
@@ -112,6 +137,7 @@ while running:
             else:
                 scroll_offset += event.y * 20
         elif event.type == pygame.KEYDOWN:
+            
             if event.key == pygame.K_ESCAPE:
                 menu_open = not menu_open
             elif not menu_open:
@@ -128,46 +154,64 @@ while running:
                     elif event.key == pygame.K_BACKSPACE:
                         input_angle = input_angle[:-1]
                     else:
-                        input_angle += event.unicode
+                        input_angle += event.KEYDOWN.unicode
                 else:
                     if event.key == pygame.K_j and initial_player_pos is not None:
                         direction = pygame.Vector2(1, 0).rotate(-player_angle)
                         distance = direction.dot(player_pos - initial_player_pos) / zoom_factor / (30/7)
+                        if not combined_list:
+                            combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
                         combined_list.append(f"chassis.pid_drive_set({int(distance)}_in, 110);\nchassis.pid_wait();\n")
                         print(f"Distance: {int(distance)}")
                     elif event.key == pygame.K_h:
                         angle = int(player_angle) % 360
+                        if not combined_list:
+                            combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
                         combined_list.append(f"chassis.pid_turn_set({angle}_deg, 90);\nchassis.pid_wait();\n")
                         print(f"chassis.pid_turn_set({angle}_deg, 90);\nchassis.pid_wait();\n")
                     elif event.key == pygame.K_COMMA:
                         #intake on
                         intake_state = 127
+                        if not combined_list:
+                            combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
                         combined_list.append(f"intake.move(127);\n")
                         print(f"intake.move(127);")
                     elif event.key == pygame.K_PERIOD:
                         #intake off
                         intake_state = 0
+                        if not combined_list:
+                            combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
                         combined_list.append(f"intake.move(0);\n")
                         print(f"intake.move(0);")
                     elif event.key == pygame.K_SLASH:
                         #intake reverse
                         intake_state = -127
+                        if not combined_list:
+                            combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
                         combined_list.append(f"intake.move(-127);\n")
                         print(f"intake.move(-127);")
                     elif event.key == pygame.K_v:
                         arm_pos = 10
+                        if not combined_list:
+                            combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
                         combined_list.append(f"armPID.set_target({arm_pos});\n")
                         print(f"armPID.set_target({arm_pos});")
                     elif event.key == pygame.K_b:
                         arm_pos = 290
+                        if not combined_list:
+                            combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
                         combined_list.append(f"armPID.set_target({arm_pos});\n")
                         print(f"armPID.set_target({arm_pos});")
                     elif event.key == pygame.K_n:
                         arm_pos = 1850
+                        if not combined_list:
+                            combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
                         combined_list.append(f"armPID.set_target({arm_pos});\n")
                         print(f"armPID.set_target({arm_pos});")
                     elif event.key == pygame.K_m:
                         arm_pos = 550
+                        if not combined_list:
+                            combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
                         combined_list.append(f"armPID.set_target({arm_pos});\n")
                         print(f"armPID.set_target({arm_pos});")
                     elif event.key == pygame.K_u:
@@ -193,7 +237,12 @@ while running:
                             combined_list.pop()
                             print("Last entry deleted")
                     elif event.key == pygame.K_p:
-                        write_to_filef(event, combined_list, text_box_open, input_function)
+                        write_to_filef(event, combined_list, True, screen, font, pygame)
+                    elif event.key == pygame.K_e:
+                        selected_function = display_function_menu(screen, font, functions)
+                        if selected_function:
+                            print(f"Selected function: {selected_function}")
+                            # Implement editing functionality here
                     elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9, pygame.K_0]:
                         key = event.key - pygame.K_0
                         if mode == "place":
@@ -202,10 +251,97 @@ while running:
                         elif mode == "set" and key in saved_positions:
                             player_pos, player_angle = saved_positions[key]
                             print(f"Moved to position {key}: {player_pos}, Angle: {player_angle}")
+                    elif event.key == pygame.K_LEFTBRACKET:
+                        if combined_list:
+                            selected_entry_index = (selected_entry_index - 1) % len(combined_list)
+                    elif event.key == pygame.K_RIGHTBRACKET:
+                        if combined_list:
+                            selected_entry_index = (selected_entry_index + 1) % len(combined_list)
+                    elif event.key == pygame.K_DELETE:
+                        if combined_list and selected_entry_index != -1:
+                            combined_list.pop(selected_entry_index)
+                            if not combined_list:
+                                selected_entry_index = -1
+                            else:
+                                selected_entry_index %= len(combined_list)
+                    elif event.key == pygame.K_INSERT:
+                        if combined_list and selected_entry_index != -1:
+                            combined_list.insert(selected_entry_index + 1, "// New entry")
+                            selected_entry_index += 1
+                    elif pygame.key.get_mods() & pygame.K_INSERT:
+                        if event.key == pygame.K_j and initial_player_pos is not None:
+                            direction = pygame.Vector2(1, 0).rotate(-player_angle)
+                            distance = direction.dot(player_pos - initial_player_pos) / zoom_factor / (30/7)
+                            if not combined_list:
+                                combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
+                            combined_list.insert(selected_entry_index + 1, f"chassis.pid_drive_set({int(distance)}_in, 110);\nchassis.pid_wait();\n")
+                            selected_entry_index += 1
+                            print(f"Distance: {int(distance)}")
+                        elif event.key == pygame.K_h:
+                            angle = int(player_angle) % 360
+                            if not combined_list:
+                                combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
+                            combined_list.insert(selected_entry_index + 1, f"chassis.pid_turn_set({angle}_deg, 90);\nchassis.pid_wait();\n")
+                            selected_entry_index += 1
+                            print(f"chassis.pid_turn_set({angle}_deg, 90);\nchassis.pid_wait();\n")
+                        elif event.key == pygame.K_COMMA:
+                            #intake on
+                            intake_state = 127
+                            if not combined_list:
+                                combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
+                            combined_list.insert(selected_entry_index + 1, f"intake.move(127);\n")
+                            selected_entry_index += 1
+                            print(f"intake.move(127);")
+                        elif event.key == pygame.K_PERIOD:
+                            #intake off
+                            intake_state = 0
+                            if not combined_list:
+                                combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
+                            combined_list.insert(selected_entry_index + 1, f"intake.move(0);\n")
+                            selected_entry_index += 1
+                            print(f"intake.move(0);")
+                        elif event.key == pygame.K_SLASH:
+                            #intake reverse
+                            intake_state = -127
+                            if not combined_list:
+                                combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
+                            combined_list.insert(selected_entry_index + 1, f"intake.move(-127);\n")
+                            selected_entry_index += 1
+                            print(f"intake.move(-127);")
+                        elif event.key == pygame.K_v:
+                            arm_pos = 10
+                            if not combined_list:
+                                combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
+                            combined_list.insert(selected_entry_index + 1, f"armPID.set_target({arm_pos});\n")
+                            selected_entry_index += 1
+                            print(f"armPID.set_target({arm_pos});")
+                        elif event.key == pygame.K_b:
+                            arm_pos = 290
+                            if not combined_list:
+                                combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
+                            combined_list.insert(selected_entry_index + 1, f"armPID.set_target({arm_pos});\n")
+                            selected_entry_index += 1
+                            print(f"armPID.set_target({arm_pos});")
+                        elif event.key == pygame.K_n:
+                            arm_pos = 1850
+                            if not combined_list:
+                                combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
+                            combined_list.insert(selected_entry_index + 1, f"armPID.set_target({arm_pos});\n")
+                            selected_entry_index += 1
+                            print(f"armPID.set_target({arm_pos});")
+                        elif event.key == pygame.K_m:
+                            arm_pos = 550
+                            if not combined_list:
+                                combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°\n")
+                            combined_list.insert(selected_entry_index + 1, f"armPID.set_target({arm_pos});\n")
+                            selected_entry_index += 1
+                            print(f"armPID.set_target({arm_pos});")
 
     if not menu_open:
         # fill the screen with a color to wipe away anything from last frame
         screen.fill("gray")
+
+        eventkey = pygame.event.get()
 
         # Update camera offset to center on (0, 0)
         camera_offset.x = -screen.get_width() / 2
@@ -247,6 +383,8 @@ while running:
         mouse_text = font.render(f"Mouse: ({mouse_x}, {mouse_y})", True, (255, 255, 255))
         screen.blit(mouse_text, (10, 50))
 
+        #allows code to print to file
+
         # Display the initial player position when L is first pressed
         if initial_player_pos is not None:
             initial_pos_text = font.render(f"Initial Pos: ({int(initial_player_pos.x)}, {int(initial_player_pos.y)})", True, (255, 255, 255))
@@ -271,7 +409,8 @@ while running:
         for i, entry in enumerate(combined_list):
             entry_y = list_start_y + i * 20 + scroll_offset
             if entry_y < list_end_y:
-                entry_text = font.render(entry, True, (255, 255, 255))
+                color = (255, 255, 255) if i != selected_entry_index else (255, 0, 0)
+                entry_text = font.render(entry, True, color)
                 screen.blit(entry_text, (screen.get_width() - 350, entry_y))
 
         # Display the saved positions and angles on the middle left side of the screen
@@ -286,7 +425,11 @@ while running:
 
         # Draw the text box if open
         if text_box_open:
-            draw_text_box(screen, input_angle)
+            1
+            #draw_text_box(screen, input_function, font)
+
+        # Draw the functions menu button
+        screen.blit(menu_button_image, menu_button_rect.topleft)
 
         # Handle player movement
         keys = pygame.key.get_pressed()
