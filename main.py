@@ -3,6 +3,7 @@ from pickle import FALSE, TRUE
 from turtle import distance
 import pygame
 from help_menu import draw_menu  # Import draw_menu function from help_menu.py
+from write_to_file import write_to_filef  # Import write_to_file function from write_to_file.py
 
 # pygame setup
 pygame.init()
@@ -67,6 +68,9 @@ text_box_open = False
 
 # Variable to store the input angle
 input_angle = ""
+
+# Variable to store the input function
+input_function = ""
 
 def draw_lines(screen, points):
     if len(points) > 1:
@@ -189,9 +193,7 @@ while running:
                             combined_list.pop()
                             print("Last entry deleted")
                     elif event.key == pygame.K_p:
-                        print("Combined list:")
-                        for item in combined_list:
-                            print(item)
+                        write_to_filef(event, combined_list, text_box_open, input_function)
                     elif event.key in [pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9, pygame.K_0]:
                         key = event.key - pygame.K_0
                         if mode == "place":
