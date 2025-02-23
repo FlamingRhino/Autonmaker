@@ -87,6 +87,10 @@ menu_button_rect = menu_button_image.get_rect(topleft=(10, screen.get_height() -
 play_button_image = pygame.image.load("pythonatuothing\\playbuttonn.png").convert_alpha()
 play_button_rect = play_button_image.get_rect(topleft=(menu_button_rect.right + 10, screen.get_height() - 60))
 
+# Load the image for the add position button
+add_position_button_image = pygame.image.load("pythonatuothing\\add_position_button.png").convert_alpha()
+add_position_button_rect = add_position_button_image.get_rect(topleft=(10, screen.get_height() - 120))  # Move the button up
+
 # Variable to track the selected entry in the combined list
 selected_entry_index = -1
 
@@ -97,6 +101,9 @@ piston11_state = False
 
 # Variable to track the state of piston22
 piston22_state = False
+
+# List to store the points for drawing lines during playback
+playback_line_points = []
 
 def draw_lines(screen, points):
     if len(points) > 1:
@@ -127,29 +134,38 @@ def playback_combined_list(combined_list, player_pos, player_angle, dt):
             x = int(parts[0].split(": ")[1])
             y = int(parts[1])
             try:
-                angle = int(parts[2].split(": ")[1].replace("°", "").replace("ï¿½", "")) * -1  # Invert the angle
+                angle = (360 - int(parts[2].split(": ")[1].replace("°", "").replace("ï¿½", ""))) % 360  # Ensure angle is positive
             except ValueError:
                 angle = 0  # Default to 0 if there's an error
             target_pos = pygame.Vector2(x, y)
             target_angle = angle
-            while player_pos.distance_to(target_pos) > 1 or abs(player_angle - target_angle) > 1:
+            while player_pos.distance_to(target_pos) > 1 or abs((player_angle - target_angle + 180) % 360 - 180) > 1:
                 player_pos = interpolate(player_pos, target_pos, dt)
-                player_angle = interpolate(player_angle, target_angle, dt)
+                player_angle = interpolate_angle(player_angle, target_angle, dt)
+                playback_line_points.append(player_pos.copy())  # Store the point for drawing lines
                 yield player_pos, player_angle, index
-            player_angle = 0  # Set the angle to zero at the start of the playback
+            player_pos = target_pos  # Ensure the player position is exactly at the target position
+            player_angle = target_angle
+            error_angle = player_angle  # Reset the player angle to zero
+            pygame.time.wait(500)  # Wait for 500 milliseconds before moving to the next entry
+            continue  # Move to the next entry
         elif "chassis.pid_drive_set" in entry:
             distance = float(entry.split("(")[1].split("_")[0]) * (30 / 7)
             direction = pygame.Vector2(1, 0).rotate(player_angle)  # Use positive angle for direction
             target_pos = player_pos + direction * distance
             while player_pos.distance_to(target_pos) > 1:
                 player_pos = interpolate(player_pos, target_pos, dt)
+                playback_line_points.append(player_pos.copy())  # Store the point for drawing lines
                 yield player_pos, player_angle, index
+            player_pos = target_pos  # Ensure the player position is exactly at the target position
         elif "chassis.pid_turn_set" in entry:
-            angle = int(entry.split("(")[1].split("_")[0]) * -1  # Invert the angle
-            target_angle = angle
-            while abs(player_angle - target_angle) > 1:
-                player_angle = interpolate(player_angle, target_angle, dt)
+            angle = int(entry.split("(")[1].split("_")[0])  # Get the angle from the entry
+            target_angle = angle + error_angle  # Subtract the angle from the current angle
+            while abs((player_angle - target_angle + 180) % 360 - 180) > 1:
+                player_angle = interpolate_angle(player_angle, target_angle, dt)
+                playback_line_points.append(player_pos.copy())  # Store the point for drawing lines
                 yield player_pos, player_angle, index
+            player_angle = target_angle  # Ensure the player angle is exactly at the target angle
         elif "intake.move" in entry:
             intake_state = int(entry.split("(")[1].split(")")[0])
             yield player_pos, player_angle, index
@@ -164,6 +180,10 @@ def playback_combined_list(combined_list, player_pos, player_angle, dt):
             yield player_pos, player_angle, index
         # Add delay or animation if needed
     player_angle = original_angle  # Restore the original angle after playback
+
+def interpolate_angle(start, end, t):
+    delta = (end - start + 180) % 360 - 180
+    return start + delta * t * 1  # Increase the factor for faster interpolation
 
 # Variable to track if playback is active
 playback_active = False
@@ -192,6 +212,9 @@ while running:
                     playback_active = True
                     playback_generator = playback_combined_list(combined_list, player_pos, player_angle, dt)
                     print("Playback started")
+                if add_position_button_rect.collidepoint(event.pos):
+                    combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°")
+                    print(f"Added position to combined list: {combined_list[-1]}")
             elif event.button == 3:  # Right click
                 # Move player to mouse position
                 player_pos = pygame.Vector2(event.pos) + camera_offset
@@ -484,7 +507,7 @@ while running:
             playback_generator = None
             current_step_index = -1
             print("Playback finished")
-            player_angle *= -1  # Invert the angle back to the original
+            player_angle = 360 - player_angle  # Invert the angle back to the original
 
     if not menu_open:
         # fill the screen with a color to wipe away anything from last frame
@@ -516,15 +539,19 @@ while running:
         # Scale the player image based on the zoom factor
         scaled_player_image = pygame.transform.scale(player_image, (int(player_image.get_width() * zoom_factor), int(player_image.get_height() * zoom_factor)))
 
+        # Draw the playback lines
+        if len(playback_line_points) > 1:
+            pygame.draw.lines(screen, (0, 255, 0), False, [point - camera_offset for point in playback_line_points], 2)
+
         # Rotate the player image based on the inverted angle
-        rotated_player_image = pygame.transform.rotate(scaled_player_image, -(player_angle + 180))  # Adjust angle by 180 degrees
+        rotated_player_image = pygame.transform.rotate(scaled_player_image, 360 - player_angle)  # Adjust angle by subtracting from 360
         rotated_player_rect = rotated_player_image.get_rect(center=player_pos - camera_offset)
 
         # Draw the player as an image with camera offset
         screen.blit(rotated_player_image, rotated_player_rect.topleft)
 
         # Render the inverted angle as text in degrees
-        angle_text = font.render(f"Angle: {int(-(player_angle + 180)) % 360}°", True, (255, 255, 255))
+        angle_text = font.render(f"Angle: {int(360 - player_angle) % 360}°", True, (255, 255, 255))
         screen.blit(angle_text, (10, 10))
 
         # Get the mouse position
@@ -594,6 +621,9 @@ while running:
         # Draw the play button
         screen.blit(play_button_image, play_button_rect.topleft)
 
+        # Draw the add position button
+        screen.blit(add_position_button_image, add_position_button_rect.topleft)
+
         # Handle player movement
         keys = pygame.key.get_pressed()
         if line_drawing_mode:
@@ -633,6 +663,9 @@ while running:
                 player_angle += 50 * dt
             if keys[pygame.K_RIGHT]:
                 player_angle -= 50 * dt
+            if keys[pygame.K_x]:
+                playback_line_points.clear()  # Clear the playback lines
+                print("Playback lines cleared")
     else:
         # Draw a blurred version of the game
         blurred_surface = pygame.Surface(screen.get_size(), pygame.SRCALPHA)
