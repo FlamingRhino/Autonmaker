@@ -2,9 +2,8 @@ import pygame
 from pygame import font
 input_function = ""
 
-
 def write_to_filef(event, combined_list, text_box_open, screen, font, pygame):
-    input_pathname = "pythonatuothing\waypoints.txt"
+    input_pathname = "src/autons_maker.cpp"
     input_function = ""
     
     while text_box_open:
@@ -26,13 +25,15 @@ def write_to_filef(event, combined_list, text_box_open, screen, font, pygame):
                             if input_function in line:
                                 found_function = True
                                 for item in combined_list:
-                                    file.write(item + "\n")
-                                file.write("\n")
+                                    if item != "}//end":
+                                        file.write(item + "\n")
+                                file.write("}//end\n")
                         
                         if not found_function:
                             file.write(input_function + "\n")
                             for item in combined_list:
-                                file.write(item + "\n")
+                                if item != "}//end":
+                                    file.write(item + "\n")
                             file.write("}//end\n")
                     
                     for item in combined_list:
@@ -50,8 +51,6 @@ def write_to_filef(event, combined_list, text_box_open, screen, font, pygame):
                 
                 # Call draw_text_box to draw the text box on the screen
         draw_textt_box(screen, input_function, font)
-
-        
 
 def draw_textt_box(screen, text, font):
     pygame.draw.rect(screen, (0, 0, 0), (10, screen.get_height() - 50, 200, 40))

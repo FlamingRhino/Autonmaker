@@ -26,7 +26,7 @@ arm_pos = 10  # Variable to store the arm position
 field_object_image = pygame.image.load("pythonatuothing\TopViewhighstakesfield.png").convert_alpha()
 
 # Load the image for the player
-player_image = pygame.image.load("pythonatuothing\cool_arrow.png").convert_alpha()
+player_image = pygame.image.load("pythonatuothing\ROBOTphoto.png").convert_alpha()
 
 # Scale the player image to a fraction of the field object size
 player_scale_factor = 0.1  # Adjust this value to change the relative size of the player
@@ -76,8 +76,8 @@ input_angle = ""
 # Variable to store the input function
 input_function = ""
 
-# Load functions from waypoints.txt
-functions = read_functions_from_file("pythonatuothing\waypoints.txt")
+# Load functions from src/autons_maker.cpp
+functions = read_functions_from_file("src/autons_maker.cpp")
 
 # Load the image for the functions menu button
 menu_button_image = pygame.image.load("pythonatuothing\\autonsmenu.png").convert_alpha()
@@ -87,9 +87,29 @@ menu_button_rect = menu_button_image.get_rect(topleft=(10, screen.get_height() -
 play_button_image = pygame.image.load("pythonatuothing\\playbuttonn.png").convert_alpha()
 play_button_rect = play_button_image.get_rect(topleft=(menu_button_rect.right + 10, screen.get_height() - 60))
 
+# Load the image for the stop button
+stop_button_image = pygame.image.load("pythonatuothing\\stopbutton.png").convert_alpha()
+stop_button_rect = stop_button_image.get_rect(topleft=(menu_button_rect.right + 10, screen.get_height() - 360))  # Position above the play button
+
 # Load the image for the add position button
 add_position_button_image = pygame.image.load("pythonatuothing\\add_position_button.png").convert_alpha()
 add_position_button_rect = add_position_button_image.get_rect(topleft=(10, screen.get_height() - 120))  # Ensure the button is positioned correctly
+
+# Load the image for the arm button
+arm_button_image = pygame.image.load("pythonatuothing\\arm_button.png").convert_alpha()
+arm_button_rect = arm_button_image.get_rect(topleft=(10, screen.get_height() - 180))
+
+# Load the image for the piston11 button
+piston11_button_image = pygame.image.load("pythonatuothing\\piston11_button.png").convert_alpha()
+piston11_button_rect = piston11_button_image.get_rect(topleft=(10, screen.get_height() - 240))
+
+# Load the image for the piston22 button
+piston22_button_image = pygame.image.load("pythonatuothing\\piston22_button.png").convert_alpha()
+piston22_button_rect = piston22_button_image.get_rect(topleft=(10, screen.get_height() - 300))
+
+# Load the image for the intake button
+intake_button_image = pygame.image.load("pythonatuothing\\intake_button.png").convert_alpha()
+intake_button_rect = intake_button_image.get_rect(topleft=(10, screen.get_height() - 360))
 
 # Variable to track the selected entry in the combined list
 selected_entry_index = -1
@@ -126,6 +146,7 @@ def interpolate(start, end, t):
     return start + (end - start) * t
 
 def playback_combined_list(combined_list, player_pos, player_angle, dt):
+    original_pos = player_pos.copy()  # Store the original position
     original_angle = player_angle  # Store the original angle
     
     for index, entry in enumerate(combined_list):
@@ -146,7 +167,6 @@ def playback_combined_list(combined_list, player_pos, player_angle, dt):
                 yield player_pos, player_angle, index
             player_pos = target_pos  # Ensure the player position is exactly at the target position
             player_angle = target_angle
-            error_angle = player_angle  # Reset the player angle to zero
             pygame.time.wait(500)  # Wait for 500 milliseconds before moving to the next entry
             continue  # Move to the next entry
         elif "chassis.pid_drive_set" in entry:
@@ -159,8 +179,11 @@ def playback_combined_list(combined_list, player_pos, player_angle, dt):
                 yield player_pos, player_angle, index
             player_pos = target_pos  # Ensure the player position is exactly at the target position
         elif "chassis.pid_turn_set" in entry:
-            angle = int(entry.split("(")[1].split("_")[0])  # Get the angle from the entry
-            target_angle = angle + error_angle  # Subtract the angle from the current angle
+            try:
+                angle = int(entry.split("(")[1].split("_")[0])  # Get the angle from the entry
+            except ValueError:
+                angle = int(entry.split("(")[1].split(",")[0])  # Handle entries with additional parameters
+            target_angle = angle  # Set the target angle directly
             while abs((player_angle - target_angle + 180) % 360 - 180) > 1:
                 player_angle = interpolate_angle(player_angle, target_angle, dt)
                 playback_line_points.append(player_pos.copy())  # Store the point for drawing lines
@@ -179,6 +202,7 @@ def playback_combined_list(combined_list, player_pos, player_angle, dt):
             piston22_state = "true" in entry
             yield player_pos, player_angle, index
         # Add delay or animation if needed
+    player_pos = original_pos  # Restore the original position after playback
     player_angle = original_angle  # Restore the original angle after playback
 
 def interpolate_angle(start, end, t):
@@ -212,6 +236,11 @@ while running:
                     playback_active = True
                     playback_generator = playback_combined_list(combined_list, player_pos, player_angle, dt)
                     print("Playback started")
+                elif stop_button_rect.collidepoint(event.pos):
+                    playback_active = False
+                    playback_generator = None
+                    current_step_index = -1
+                    print("Playback stopped")
                 elif add_position_button_rect.collidepoint(event.pos):
                     position_entry = f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°"
                     if combined_list and combined_list[selected_entry_index] == "// New entry":
@@ -219,6 +248,26 @@ while running:
                     else:
                         combined_list.append(position_entry)
                     print(f"Added position to combined list: {combined_list[-1]}")
+                elif arm_button_rect.collidepoint(event.pos):
+                    arm_pos = (arm_pos + 1) % 4  # Cycle through 4 states
+                    arm_positions = [10, 290, 550, 1850]
+                    arm_pos = arm_positions[arm_pos]
+                    combined_list.append(f"armPID.set_target({arm_pos});")
+                    print(f"Arm position set to: {arm_pos}")
+                elif piston11_button_rect.collidepoint(event.pos):
+                    piston11_state = not piston11_state
+                    combined_list.append(f"piston11.set({str(piston11_state).lower()});")
+                    print(f"Piston11 state set to: {piston11_state}")
+                elif piston22_button_rect.collidepoint(event.pos):
+                    piston22_state = not piston22_state
+                    combined_list.append(f"piston22.set({str(piston22_state).lower()});")
+                    print(f"Piston22 state set to: {piston22_state}")
+                elif intake_button_rect.collidepoint(event.pos):
+                    intake_state = (intake_state + 1) % 3  # Cycle through 3 states
+                    intake_states = [0, 127, -127]
+                    intake_state = intake_states[intake_state]
+                    combined_list.append(f"intake.move({intake_state});")
+                    print(f"Intake state set to: {intake_state}")
             elif event.button == 3:  # Right click
                 # Move player to mouse position
                 player_pos = pygame.Vector2(event.pos) + camera_offset
@@ -632,8 +681,23 @@ while running:
         # Draw the play button
         screen.blit(play_button_image, play_button_rect.topleft)
 
+        # Draw the stop button
+        screen.blit(stop_button_image, stop_button_rect.topleft)
+
         # Draw the add position button
         screen.blit(add_position_button_image, add_position_button_rect.topleft)
+
+        # Draw the arm button
+        screen.blit(arm_button_image, arm_button_rect.topleft)
+
+        # Draw the piston11 button
+        screen.blit(piston11_button_image, piston11_button_rect.topleft)
+
+        # Draw the piston22 button
+        screen.blit(piston22_button_image, piston22_button_rect.topleft)
+
+        # Draw the intake button
+        screen.blit(intake_button_image, intake_button_rect.topleft)
 
         # Handle player movement
         keys = pygame.key.get_pressed()
