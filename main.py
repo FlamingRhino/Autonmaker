@@ -83,10 +83,20 @@ functions = read_functions_from_file("pythonatuothing\waypoints.txt")
 menu_button_image = pygame.image.load("pythonatuothing\\autonsmenu.png").convert_alpha()
 menu_button_rect = menu_button_image.get_rect(topleft=(10, screen.get_height() - 60))
 
+# Load the image for the play button
+play_button_image = pygame.image.load("pythonatuothing\\playbuttonn.png").convert_alpha()
+play_button_rect = play_button_image.get_rect(topleft=(menu_button_rect.right + 10, screen.get_height() - 60))
+
 # Variable to track the selected entry in the combined list
 selected_entry_index = -1
 
 loaded_function_name = ""
+
+# Variable to track the state of piston11
+piston11_state = False
+
+# Variable to track the state of piston22
+piston22_state = False
 
 def draw_lines(screen, points):
     if len(points) > 1:
@@ -104,6 +114,61 @@ def replace_combined_list_with_function(function_name, functions, combined_list)
         combined_list.clear()
         combined_list.extend(functions[function_name])
         loaded_function_name = function_name
+
+def interpolate(start, end, t):
+    return start + (end - start) * t
+
+def playback_combined_list(combined_list, player_pos, player_angle, dt):
+    original_angle = player_angle  # Store the original angle
+    
+    for index, entry in enumerate(combined_list):
+        if entry.startswith("// Position:"):
+            parts = entry.split(", ")
+            x = int(parts[0].split(": ")[1])
+            y = int(parts[1])
+            try:
+                angle = int(parts[2].split(": ")[1].replace("°", "").replace("ï¿½", "")) * -1  # Invert the angle
+            except ValueError:
+                angle = 0  # Default to 0 if there's an error
+            target_pos = pygame.Vector2(x, y)
+            target_angle = angle
+            while player_pos.distance_to(target_pos) > 1 or abs(player_angle - target_angle) > 1:
+                player_pos = interpolate(player_pos, target_pos, dt)
+                player_angle = interpolate(player_angle, target_angle, dt)
+                yield player_pos, player_angle, index
+            player_angle = 0  # Set the angle to zero at the start of the playback
+        elif "chassis.pid_drive_set" in entry:
+            distance = float(entry.split("(")[1].split("_")[0]) * (30 / 7)
+            direction = pygame.Vector2(1, 0).rotate(player_angle)  # Use positive angle for direction
+            target_pos = player_pos + direction * distance
+            while player_pos.distance_to(target_pos) > 1:
+                player_pos = interpolate(player_pos, target_pos, dt)
+                yield player_pos, player_angle, index
+        elif "chassis.pid_turn_set" in entry:
+            angle = int(entry.split("(")[1].split("_")[0]) * -1  # Invert the angle
+            target_angle = angle
+            while abs(player_angle - target_angle) > 1:
+                player_angle = interpolate(player_angle, target_angle, dt)
+                yield player_pos, player_angle, index
+        elif "intake.move" in entry:
+            intake_state = int(entry.split("(")[1].split(")")[0])
+            yield player_pos, player_angle, index
+        elif "armPID.set_target" in entry:
+            arm_pos = int(entry.split("(")[1].split(")")[0])
+            yield player_pos, player_angle, index
+        elif "piston11.set" in entry:
+            piston11_state = "true" in entry
+            yield player_pos, player_angle, index
+        elif "piston22.set" in entry:
+            piston22_state = "true" in entry
+            yield player_pos, player_angle, index
+        # Add delay or animation if needed
+    player_angle = original_angle  # Restore the original angle after playback
+
+# Variable to track if playback is active
+playback_active = False
+playback_generator = None
+current_step_index = -1
 
 screen.fill("gray")
 while running:
@@ -123,6 +188,10 @@ while running:
                         print(f"Selected function: {selected_function}")
                         replace_combined_list_with_function(selected_function, functions, combined_list)
                         print("Combined list replaced with selected function")
+                if play_button_rect.collidepoint(event.pos):
+                    playback_active = True
+                    playback_generator = playback_combined_list(combined_list, player_pos, player_angle, dt)
+                    print("Playback started")
             elif event.button == 3:  # Right click
                 # Move player to mouse position
                 player_pos = pygame.Vector2(event.pos) + camera_offset
@@ -165,7 +234,7 @@ while running:
                     elif event.key == pygame.K_BACKSPACE:
                         input_angle = input_angle[:-1]
                     else:
-                        input_angle += event.KEYDOWN.unicode
+                        input_angle += event.unicode
                 else:
                     if event.key == pygame.K_j and initial_player_pos is not None:
                         direction = pygame.Vector2(1, 0).rotate(-player_angle)
@@ -307,6 +376,10 @@ while running:
                         if combined_list and selected_entry_index != -1:
                             combined_list.insert(selected_entry_index + 1, "// New entry")
                             selected_entry_index += 1
+                    elif event.key == pygame.K_r:
+                        piston22_state = not piston22_state
+                        combined_list.append(f"piston22.set({str(piston22_state).lower()});")
+                        print(f"piston22.set({str(piston22_state).lower()});")
                     elif pygame.key.get_mods():
                         if event.key == pygame.K_j and initial_player_pos is not None:
                             direction = pygame.Vector2(1, 0).rotate(-player_angle)
@@ -403,6 +476,16 @@ while running:
                                 selected_entry_index += 1
                             print(f"armPID.set_target({arm_pos});")
 
+    if playback_active and playback_generator:
+        try:
+            player_pos, player_angle, current_step_index = next(playback_generator)
+        except StopIteration:
+            playback_active = False
+            playback_generator = None
+            current_step_index = -1
+            print("Playback finished")
+            player_angle *= -1  # Invert the angle back to the original
+
     if not menu_open:
         # fill the screen with a color to wipe away anything from last frame
         screen.fill("gray")
@@ -433,15 +516,15 @@ while running:
         # Scale the player image based on the zoom factor
         scaled_player_image = pygame.transform.scale(player_image, (int(player_image.get_width() * zoom_factor), int(player_image.get_height() * zoom_factor)))
 
-        # Rotate the player image based on the angle
-        rotated_player_image = pygame.transform.rotate(scaled_player_image, player_angle)
+        # Rotate the player image based on the inverted angle
+        rotated_player_image = pygame.transform.rotate(scaled_player_image, -(player_angle + 180))  # Adjust angle by 180 degrees
         rotated_player_rect = rotated_player_image.get_rect(center=player_pos - camera_offset)
 
         # Draw the player as an image with camera offset
         screen.blit(rotated_player_image, rotated_player_rect.topleft)
 
-        # Render the angle as text in degrees
-        angle_text = font.render(f"Angle: {int(player_angle) % 360}°", True, (255, 255, 255))
+        # Render the inverted angle as text in degrees
+        angle_text = font.render(f"Angle: {int(-(player_angle + 180)) % 360}°", True, (255, 255, 255))
         screen.blit(angle_text, (10, 10))
 
         # Get the mouse position
@@ -472,13 +555,21 @@ while running:
         arm_pos_text = font.render(f"Arm Pos: {arm_pos}", True, (255, 255, 255))
         screen.blit(arm_pos_text, (10, 200))
 
+        # Display the piston11 state
+        piston11_text = font.render(f"Piston11 State: {piston11_state}", True, (255, 255, 255))
+        screen.blit(piston11_text, (10, 230))
+
+        # Display the piston22 state
+        piston22_text = font.render(f"Piston22 State: {piston22_state}", True, (255, 255, 255))
+        screen.blit(piston22_text, (10, 260))
+
         # Display the combined list of distances and angles on the right side of the screen
         list_start_y = 10  # Starting y position for the list
         list_end_y = screen.get_height() - 20  # Ending y position to avoid overlap with bottom content
         for i, entry in enumerate(combined_list):
             entry_y = list_start_y + i * 20 + scroll_offset
             if entry_y < list_end_y:
-                color = (255, 255, 255) if i != selected_entry_index else (255, 0, 0)
+                color = (255, 255, 255) if i != current_step_index else (0, 255, 0)
                 entry_text = font.render(entry, True, color)
                 screen.blit(entry_text, (screen.get_width() - 350, entry_y))
 
@@ -500,10 +591,13 @@ while running:
         # Draw the functions menu button
         screen.blit(menu_button_image, menu_button_rect.topleft)
 
+        # Draw the play button
+        screen.blit(play_button_image, play_button_rect.topleft)
+
         # Handle player movement
         keys = pygame.key.get_pressed()
         if line_drawing_mode:
-            direction = pygame.Vector2(1, 0).rotate(-player_angle)  # Invert the direction based on player angle
+            direction = pygame.Vector2(1, 0).rotate(player_angle)  # Use positive angle for direction
             direction = direction.normalize()  # Normalize the direction vector
             line_end_pos = line_start_pos + direction * 10000  # Extend the line far enough to reach the screen boundaries
             line_start_extended = line_start_pos - direction * 10000
@@ -518,9 +612,9 @@ while running:
                 player_pos = player_pos - direction * (50 * dt)
         else:
             if keys[pygame.K_w]:
-                player_pos += pygame.Vector2(1, 0).rotate(-player_angle) * (300 * dt)
+                player_pos += pygame.Vector2(1, 0).rotate(player_angle) * (300 * dt)  # Adjust angle by 180 degrees
             if keys[pygame.K_s]:
-                player_pos -= pygame.Vector2(1, 0).rotate(-player_angle) * (300 * dt)
+                player_pos -= pygame.Vector2(1, 0).rotate(player_angle) * (300 * dt)  # Adjust angle by 180 degrees
             if keys[pygame.K_a]:
                 player_angle += 300 * dt  # Rotate counterclockwise
             if keys[pygame.K_d]:
@@ -528,13 +622,13 @@ while running:
 
         if not line_drawing_mode:
             if keys[pygame.K_q]:
-                player_pos -= pygame.Vector2(1, 0).rotate(-player_angle + 90) * (300 * dt)
+                player_pos -= pygame.Vector2(1, 0).rotate(player_angle + 90) * (300 * dt)  # Adjust angle by 180 degrees
             if keys[pygame.K_e]:
-                player_pos += pygame.Vector2(1, 0).rotate(-player_angle + 90) * (300 * dt)
+                player_pos += pygame.Vector2(1, 0).rotate(player_angle + 90) * (300 * dt)  # Adjust angle by 180 degrees
             if keys[pygame.K_UP]:
-                player_pos += pygame.Vector2(1, 0).rotate(-player_angle) * (100 * dt)  # Move forward slowly
+                player_pos += pygame.Vector2(1, 0).rotate(player_angle) * (100 * dt)  # Move forward slowly, adjust angle by 180 degrees
             if keys[pygame.K_DOWN]:
-                player_pos -= pygame.Vector2(1, 0).rotate(-player_angle) * (100 * dt)  # Move backward slowly
+                player_pos -= pygame.Vector2(1, 0).rotate(player_angle) * (100 * dt)  # Move backward slowly, adjust angle by 180 degrees
             if keys[pygame.K_LEFT]:
                 player_angle += 50 * dt
             if keys[pygame.K_RIGHT]:

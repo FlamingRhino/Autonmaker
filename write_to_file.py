@@ -4,7 +4,7 @@ input_function = ""
 
 
 def write_to_filef(event, combined_list, text_box_open, screen, font, pygame):
-    input_pathname = "waypoints.txt"
+    input_pathname = "pythonatuothing\waypoints.txt"
     input_function = ""
     
     while text_box_open:
