@@ -89,7 +89,7 @@ play_button_rect = play_button_image.get_rect(topleft=(menu_button_rect.right + 
 
 # Load the image for the add position button
 add_position_button_image = pygame.image.load("pythonatuothing\\add_position_button.png").convert_alpha()
-add_position_button_rect = add_position_button_image.get_rect(topleft=(10, screen.get_height() - 120))  # Move the button up
+add_position_button_rect = add_position_button_image.get_rect(topleft=(10, screen.get_height() - 120))  # Ensure the button is positioned correctly
 
 # Variable to track the selected entry in the combined list
 selected_entry_index = -1
@@ -208,12 +208,16 @@ while running:
                         print(f"Selected function: {selected_function}")
                         replace_combined_list_with_function(selected_function, functions, combined_list)
                         print("Combined list replaced with selected function")
-                if play_button_rect.collidepoint(event.pos):
+                elif play_button_rect.collidepoint(event.pos):
                     playback_active = True
                     playback_generator = playback_combined_list(combined_list, player_pos, player_angle, dt)
                     print("Playback started")
-                if add_position_button_rect.collidepoint(event.pos):
-                    combined_list.append(f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°")
+                elif add_position_button_rect.collidepoint(event.pos):
+                    position_entry = f"// Position: {int(player_pos.x)}, {int(player_pos.y)}, Angle: {int(player_angle) % 360}°"
+                    if combined_list and combined_list[selected_entry_index] == "// New entry":
+                        combined_list[selected_entry_index] = position_entry
+                    else:
+                        combined_list.append(position_entry)
                     print(f"Added position to combined list: {combined_list[-1]}")
             elif event.button == 3:  # Right click
                 # Move player to mouse position
@@ -240,7 +244,6 @@ while running:
             else:
                 scroll_offset += event.y * 20
         elif event.type == pygame.KEYDOWN:
-            
             if event.key == pygame.K_ESCAPE:
                 menu_open = not menu_open
             elif not menu_open:
@@ -361,10 +364,12 @@ while running:
                         print(f"Line Drawing Mode: {'On' if line_drawing_mode else 'Off'}")
                     elif event.key == pygame.K_c:
                         combined_list.clear()
+                        selected_entry_index = -1  # Reset the selected entry index
                         print("Combined list cleared")
                     elif event.key == pygame.K_BACKSPACE:
                         if combined_list:
                             combined_list.pop()
+                            selected_entry_index = max(selected_entry_index - 1, -1)  # Update the selected entry index
                             print("Last entry deleted")
                     elif event.key == pygame.K_p:
                         write_to_filef(event, combined_list, True, screen, font, pygame)
@@ -385,9 +390,11 @@ while running:
                     elif event.key == pygame.K_LEFTBRACKET:
                         if combined_list:
                             selected_entry_index = (selected_entry_index - 1) % len(combined_list)
+                            print(f"Selected entry index: {selected_entry_index}")
                     elif event.key == pygame.K_RIGHTBRACKET:
                         if combined_list:
                             selected_entry_index = (selected_entry_index + 1) % len(combined_list)
+                            print(f"Selected entry index: {selected_entry_index}")
                     elif event.key == pygame.K_DELETE:
                         if combined_list and selected_entry_index != -1:
                             combined_list.pop(selected_entry_index)
@@ -395,10 +402,12 @@ while running:
                                 selected_entry_index = -1
                             else:
                                 selected_entry_index %= len(combined_list)
+                            print(f"Deleted entry at index: {selected_entry_index}")
                     elif event.key == pygame.K_INSERT:
                         if combined_list and selected_entry_index != -1:
                             combined_list.insert(selected_entry_index + 1, "// New entry")
                             selected_entry_index += 1
+                            print(f"Inserted new entry at index: {selected_entry_index}")
                     elif event.key == pygame.K_r:
                         piston22_state = not piston22_state
                         combined_list.append(f"piston22.set({str(piston22_state).lower()});")
@@ -597,6 +606,8 @@ while running:
             entry_y = list_start_y + i * 20 + scroll_offset
             if entry_y < list_end_y:
                 color = (255, 255, 255) if i != current_step_index else (0, 255, 0)
+                if i == selected_entry_index:
+                    color = (255, 0, 0)  # Highlight the selected entry in red
                 entry_text = font.render(entry, True, color)
                 screen.blit(entry_text, (screen.get_width() - 350, entry_y))
 
