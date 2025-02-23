@@ -1,4 +1,4 @@
-void wadw()
+void wadw(){
 intake.move(127);
 
 armPID.set_target(550);
@@ -6,11 +6,11 @@ armPID.set_target(550);
 intake.move(0);
 
 intake.move(127);
+}//end
 
 
-void weeeeeee()
 
-void test()
+void test(){
 chassis.pid_turn_set(150_deg, 90);
 chassis.pid_wait();
 
@@ -36,6 +36,8 @@ intake.move(0);
 
 armPID.set_target(550);
 
+}//end
+
 
 wd
 
@@ -44,7 +46,7 @@ ppp
 pwwee
 
 wedgd
-// Position: -51, -112, Angle: 72°
+// Position: -51, -112, Angle: 72ï¿½
 
 intake.move(127);
 
@@ -71,3 +73,55 @@ chassis.pid_wait();
 armPID.set_target(550);
 
 
+void red_mogo(){
+// Position: -252, -47, Angle: 195ï¿½
+
+intake.move(127);
+
+chassis.pid_drive_set(-27_in, 110);
+chassis.pid_wait();
+
+chassis.pid_turn_set(95_deg, 90);
+chassis.pid_wait();
+
+chassis.pid_drive_set(19_in, 110);
+chassis.pid_wait();
+
+chassis.pid_drive_set(-4_in, 110);
+chassis.pid_wait();
+
+}//end
+void red(){
+// Position: -252, -47, Angle: 195ï¿½
+
+intake.move(127);
+
+chassis.pid_drive_set(-27_in, 110);
+chassis.pid_wait();
+
+chassis.pid_turn_set(95_deg, 90);
+chassis.pid_wait();
+
+chassis.pid_drive_set(19_in, 110);
+chassis.pid_wait();
+
+chassis.pid_drive_set(-4_in, 110);
+chassis.pid_wait();
+
+armPID.set_target(550);
+
+armPID.set_target(550);
+
+armPID.set_target(550);
+
+armPID.set_target(550);
+
+intake.move(127);
+
+armPID.set_target(550);
+
+intake.move(127);
+
+armPID.set_target(550);
+
+}//end

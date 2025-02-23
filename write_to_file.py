@@ -15,6 +15,7 @@ def write_to_filef(event, combined_list, text_box_open, screen, font, pygame):
                 quit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
+                    input_function = "void " + input_function + "(){"
                     with open(input_pathname, "r") as file:
                         lines = file.readlines()
                     
@@ -32,7 +33,7 @@ def write_to_filef(event, combined_list, text_box_open, screen, font, pygame):
                             file.write(input_function + "\n")
                             for item in combined_list:
                                 file.write(item + "\n")
-                            file.write("\n")
+                            file.write("}//end\n")
                     
                     for item in combined_list:
                         print(item)
