@@ -2,9 +2,9 @@ import pygame
 from pygame import font
 input_function = ""
 
-def write_to_filef(event, combined_list, text_box_open, screen, font, pygame):
+def write_to_filef(event, combined_list, text_box_open, screen, font, pygame, function_name):
     input_pathname = "src/autons_maker.cpp"
-    input_function = ""
+    input_function = function_name if function_name else ""
     
     while text_box_open:
         for event in pygame.event.get():
@@ -14,20 +14,29 @@ def write_to_filef(event, combined_list, text_box_open, screen, font, pygame):
                 quit()
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
-                    input_function = "void " + input_function + "(){"
+                    if not function_name:
+                        input_function = "void " + input_function + "(){"
+                    else:
+                        input_function = "void " + function_name + "(){"
                     with open(input_pathname, "r") as file:
                         lines = file.readlines()
                     
                     found_function = False
                     with open(input_pathname, "w") as file:
+                        skip_lines = False
                         for line in lines:
-                            file.write(line)
                             if input_function in line:
                                 found_function = True
+                                skip_lines = True
+                                file.write(line)
                                 for item in combined_list:
                                     if item != "}//end":
                                         file.write(item + "\n")
                                 file.write("}//end\n")
+                            elif skip_lines and "}//end" in line:
+                                skip_lines = False
+                            elif not skip_lines:
+                                file.write(line)
                         
                         if not found_function:
                             file.write(input_function + "\n")
